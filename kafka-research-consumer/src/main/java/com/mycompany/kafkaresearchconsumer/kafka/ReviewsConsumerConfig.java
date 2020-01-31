@@ -1,8 +1,10 @@
 package com.mycompany.kafkaresearchconsumer.kafka;
 
-import com.mycompany.research.avro.ReviewMessage;
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
+import io.confluent.kafka.serializers.KafkaAvroSerializerConfig;
+import io.confluent.kafka.serializers.subject.TopicRecordNameStrategy;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,51 +21,58 @@ import java.util.Map;
 
 @EnableKafka
 @Configuration
-public class ReviewsConsumerConfig {
+public class ReviewsConsumerConfig
+{
 
-    @Value("${kafka.bootstrap-servers}")
-    private String bootstrapServers;
+@Value( "${kafka.bootstrap-servers}" )
+private String bootstrapServers;
 
-    @Value("${kafka.schema-registry-url}")
-    private String schemaRegistryUrl;
+@Value( "${kafka.schema-registry-url}" )
+private String schemaRegistryUrl;
 
-    @Value("${kafka.reviews.start-offset}")
-    private String orderStartOffset;
+@Value( "${kafka.reviews.start-offset}" )
+private String orderStartOffset;
 
-    @Value("${kafka.reviews.max-poll-records}")
-    private Integer maxPollRecords;
+@Value( "${kafka.reviews.max-poll-records}" )
+private Integer maxPollRecords;
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, ReviewMessage> kafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, ReviewMessage> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory());
-        factory.setBatchListener(true);
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
-        factory.getContainerProperties().setSyncCommits(true);
-        return factory;
-    }
+@Bean
+public <T> ConcurrentKafkaListenerContainerFactory<String, T> kafkaListenerContainerFactory()
+{
+    ConcurrentKafkaListenerContainerFactory<String, T> factory =
+        new ConcurrentKafkaListenerContainerFactory<>();
+    factory.setConsumerFactory( consumerFactory1() );
+    factory.setBatchListener( true );
+    factory.getContainerProperties().setAckMode( ContainerProperties.AckMode.MANUAL );
+    factory.getContainerProperties().setSyncCommits( true );
+    return factory;
+}
 
-    @Bean
-    public ConsumerFactory<String, ReviewMessage> consumerFactory() {
-        return new DefaultKafkaConsumerFactory<>(consumerConfigs());
-    }
+@Bean
+public <T> ConsumerFactory<String, T> consumerFactory1()
+{
+    return new DefaultKafkaConsumerFactory<>( consumerConfigs1() );
+}
+    
 
-    @Bean
-    public Map<String, Object> consumerConfigs() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, SpecificAvroWithSchemaDeserializer.class);
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, orderStartOffset);
+@Bean
+public Map<String, Object> consumerConfigs1()
+{
+    Map<String, Object> props = new HashMap<>();
+    props.put( ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers );
+    props.put( ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class );
+    props.put( ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class.getName() );
+    props.put( ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, orderStartOffset );
 
-        props.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
-        props.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, true);
-        props.put(SpecificAvroWithSchemaDeserializer.AVRO_VALUE_RECORD_TYPE, ReviewMessage.class);
-
-        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        return props;
-    }
+    props.put( AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl );
+    props.put( KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, true );
+    props.put( KafkaAvroSerializerConfig.VALUE_SUBJECT_NAME_STRATEGY, TopicRecordNameStrategy.class.getName());
+    //props.put( SpecificAvroWithSchemaDeserializer.AVRO_VALUE_RECORD_TYPE, mysql.researchdb.institutes.Value.class ); // we get rid of this
+    //props.put( ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, SpecificAvroWithSchemaDeserializer.class ); // and this as well, so SpecificAvroWithSchemaDeserializer is not needed for my case
+    
+    props.put( ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords );
+    props.put( ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false );
+    return props;
+}
 
 }
